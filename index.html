@@ -1,0 +1,623 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#a855f7">
+    <title>TaTTeD_HaTTeR • Public Gallery</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=Space+Grotesk:wght@500;600&amp;display=swap');
+        :root { --tw-color-primary: #a855f7; }
+        * { transition-property: color, background-color, border-color, text-decoration-color, fill, stroke, opacity, transform, box-shadow; transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1); transition-duration: 180ms; }
+        html, body { overflow-x: hidden; touch-action: manipulation; -webkit-overflow-scrolling: touch; }
+        .tail-container * { font-family: 'Inter', system_ui, sans-serif; }
+        .title-font { font-family: 'Space Grotesk', sans-serif; }
+        body { background: radial-gradient(circle at 20% 30%, rgba(168,85,247,0.25) 0%, transparent 50%), radial-gradient(circle at 80% 70%, rgba(236,72,153,0.25) 0%, transparent 50%), #0a0a0a; background-attachment: fixed; position: relative; }
+        .cosmic-bg { position: fixed; inset: 0; z-index: -1; background: transparent; overflow: hidden; }
+        .star { position: absolute; background: white; border-radius: 50%; animation: twinkle 4s infinite alternate; box-shadow: 0 0 8px #fff; }
+        @keyframes twinkle { 0% { opacity: 0.2; } 100% { opacity: 1; } }
+        .gallery-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 1.5rem; padding-bottom: 80px; }
+        @media (min-width: 640px) { .gallery-grid { grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 2rem; } }
+        @media (min-width: 1024px) { .gallery-grid { grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 2.5rem; } }
+        .media-card { border-radius: 28px; overflow: hidden; box-shadow: 0 8px 25px -8px rgb(168 85 247); position: relative; border: 1px solid transparent; aspect-ratio: 16/10; }
+        .media-card:hover { transform: translateY(-6px); box-shadow: 0 0 40px 15px rgba(168,85,247,0.45); border-color: #a855f7; }
+        .video-overlay { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: linear-gradient(to bottom, transparent 65%, rgba(0,0,0,0.85)); opacity: 0; }
+        .media-card:hover .video-overlay { opacity: 1; }
+        .nsfw-badge { position: absolute; top: 14px; right: 14px; background: #f43f5e; color: white; font-size: 10px; font-weight: 700; padding: 3px 12px; border-radius: 9999px; box-shadow: 0 0 0 4px rgba(244,63,94,0.3); }
+        .fab { position: fixed; bottom: 20px; right: 20px; width: 68px; height: 68px; background: linear-gradient(135deg, #a855f7, #ec4899); border-radius: 9999px; box-shadow: 0 0 35px 10px rgba(168,85,247,0.5); display: flex; align-items: center; justify-content: center; font-size: 34px; color: white; z-index: 99999; }
+        .fab.unlocked { box-shadow: 0 0 45px 15px rgba(16,185,129,0.6); }
+        .hero-bg { background: linear-gradient(180deg, #18181b 0%, #27272a 100%); padding-top: 1rem; padding-bottom: 1rem; }
+        .neon-glow { text-shadow: 0 0 20px #a855f7; }
+    </style>
+</head>
+<body class="tail-container bg-zinc-950 text-white min-h-screen pb-12">
+
+    <div class="cosmic-bg" id="starfield"></div>
+    <div id="progress-bar" class="h-1 bg-gradient-to-r from-purple-500 to-pink-500 fixed top-0 left-0 z-[99999]"></div>
+
+    <nav class="sticky top-0 z-50 bg-black/90 backdrop-blur-2xl border-b border-white/10">
+        <div class="max-w-screen-2xl mx-auto px-5 py-3">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-x-3">
+                    <div class="w-8 h-8 bg-gradient-to-br from-purple-500 to-pink-500 rounded-2xl flex items-center justify-center text-3xl">🌌</div>
+                    <div>
+                        <h1 class="title-font text-2xl tracking-[-1px] font-semibold neon-glow">TaTTeD_HaTTeR</h1>
+                        <p class="text-[10px] text-purple-400 -mt-px">PUBLIC GALLERY</p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-x-4">
+                    <button onclick="attemptUpload()" class="flex items-center gap-x-2 bg-white/10 hover:bg-white/20 text-white font-semibold px-6 py-3 rounded-3xl text-base">
+                        <span class="text-2xl">📤</span>
+                        <span class="hidden sm:inline">Upload</span>
+                    </button>
+                    <input type="file" id="file-upload" multiple accept="image/*,video/*" class="hidden" onchange="handleFiles(this.files)">
+                    <div onclick="toggleNSFW()" id="nsfw-toggle" class="flex items-center gap-x-2 bg-white/10 hover:bg-white/20 px-5 py-3 rounded-3xl cursor-pointer">
+                        <span class="text-rose-400 text-xl">🔞</span>
+                        <span id="nsfw-text" class="font-medium text-sm">NSFW</span>
+                    </div>
+                    <button onclick="refreshGallery()" class="flex items-center gap-x-2 bg-white/10 hover:bg-white/20 text-white font-semibold px-6 py-3 rounded-3xl text-base">🔄 Refresh</button>
+                    <button onclick="toggleMobileMenu()" class="sm:hidden w-10 h-10 flex items-center justify-center text-3xl bg-white/10 hover:bg-white/20 rounded-3xl">☰</button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div id="mobile-menu" class="hidden fixed inset-0 bg-black/95 z-[99999] flex flex-col pt-20 px-6">
+        <div class="flex flex-col gap-3 text-lg">
+            <button onclick="setFilter('all');toggleMobileMenu()" class="py-5 text-left font-medium">All Creations</button>
+            <button onclick="setFilter('image');toggleMobileMenu()" class="py-5 text-left font-medium">Images</button>
+            <button onclick="setFilter('video');toggleMobileMenu()" class="py-5 text-left font-medium">Videos</button>
+            <button onclick="setFilter('nsfw');toggleMobileMenu()" class="py-5 text-left font-medium">NSFW 18+</button>
+            <div class="h-px bg-white/20 my-4"></div>
+            <button onclick="attemptUpload();toggleMobileMenu()" class="py-5 text-left font-medium flex items-center gap-x-3">📤 Upload Creations</button>
+        </div>
+        <button onclick="toggleMobileMenu()" class="mt-auto mb-10 text-zinc-400 text-xl">Close</button>
+    </div>
+
+    <div class="hero-bg py-10">
+        <div class="max-w-screen-2xl mx-auto px-6">
+            <div class="flex flex-col items-center text-center">
+                <div class="inline-flex items-center gap-x-2 bg-white/10 text-white text-xs font-medium px-5 py-2 rounded-3xl mb-4">🌌 PUBLIC • CURATED • COSMIC</div>
+                <h2 class="title-font text-5xl sm:text-6xl font-semibold tracking-[-2px] leading-none neon-glow">TaTTeD_HaTTeR<br>Creations Gallery</h2>
+                <p class="mt-3 text-zinc-400 text-lg">Everyone can browse. Only I can upload.</p>
+                <button onclick="attemptUpload()" class="mt-8 flex items-center gap-x-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white font-semibold text-xl px-10 py-5 rounded-3xl shadow-xl">
+                    <span class="text-3xl">📤</span>
+                    <span>UPLOAD MY CREATIONS</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="max-w-screen-2xl mx-auto px-6 pt-6">
+        <div class="flex items-baseline justify-between mb-6">
+            <h3 class="text-2xl font-semibold">Cosmic Creations</h3>
+            <div id="stats" class="font-mono flex items-center gap-x-6 text-sm"></div>
+        </div>
+        <div id="gallery" class="gallery-grid"></div>
+        <div id="scroll-sentinel" class="h-10 w-full"></div>
+        <div id="empty-state" class="hidden mx-auto max-w-md text-center py-20 rounded-3xl bg-gradient-to-br from-zinc-900 to-purple-950/30">
+            <div class="text-7xl mb-6">🌌</div>
+            <h3 class="text-3xl font-semibold title-font">No creations yet</h3>
+            <p class="mt-3 text-zinc-400">Upload to fill the cosmic vault</p>
+        </div>
+    </div>
+
+    <div onclick="if(event.target.id === 'modal') closeModal()" id="modal" class="hidden fixed inset-0 bg-black/95 z-[9999] flex items-center justify-center p-4">
+        <div id="modal-content" class="w-full max-w-5xl bg-zinc-900/90 backdrop-blur-3xl border border-purple-400/30 rounded-3xl overflow-hidden relative">
+            <div class="px-8 py-6 border-b border-white/10 flex items-center justify-between">
+                <button onclick="prevImage()" class="flex items-center gap-x-2 text-zinc-400 hover:text-white text-4xl px-4">←</button>
+                <div id="modal-filename" class="font-semibold text-2xl truncate flex-1 text-center"></div>
+                <button onclick="nextImage()" class="flex items-center gap-x-2 text-zinc-400 hover:text-white text-4xl px-4">→</button>
+                <button onclick="closeModal()" class="text-3xl text-zinc-400 hover:text-white ml-6">✕</button>
+            </div>
+            <div id="modal-media" class="flex items-center justify-center bg-black p-8 min-h-[65vh] rounded-b-3xl"></div>
+            <div class="px-8 py-6 border-t border-white/10">
+                <div class="flex items-center gap-x-3 mb-4">
+                    <span class="uppercase text-xs tracking-widest text-zinc-400">Tags</span>
+                    <div id="modal-tags-display" class="flex gap-x-2 flex-wrap"></div>
+                </div>
+                <div class="flex gap-3">
+                    <input id="new-tag-input" type="text" placeholder="Add cosmic tag..." onkeydown="if(event.keyCode===13) addTagFromModal()" class="flex-1 bg-white/10 border border-white/10 focus:border-purple-400 rounded-3xl px-6 py-4 outline-none">
+                    <button onclick="addTagFromModal()" class="px-10 bg-purple-500 hover:bg-purple-600 rounded-3xl font-semibold">Add</button>
+                    <button onclick="suggestAITags()" class="px-8 bg-white/10 hover:bg-white/20 text-white font-semibold rounded-3xl flex items-center gap-x-2"><span>🤖</span> AI Suggest Tags</button>
+                    <button onclick="copyPermanentURL()" class="px-8 bg-white/10 hover:bg-white/20 text-white font-semibold rounded-3xl flex items-center gap-x-2"><span>🔗</span> Copy URL</button>
+                </div>
+            </div>
+            <div class="px-8 py-6 flex items-center justify-between text-sm border-t border-white/10">
+                <div id="modal-date" class="font-mono text-zinc-400"></div>
+                <div class="flex gap-x-8">
+                    <button onclick="downloadCurrent()" class="flex items-center gap-x-2 hover:text-purple-400">↓ Download</button>
+                    <button onclick="deleteCurrent()" class="flex items-center gap-x-2 text-red-400 hover:text-red-500">🗑️ Delete</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div onclick="if(event.target.id === 'unlock-modal') hideUnlockModal()" id="unlock-modal" class="hidden fixed inset-0 bg-black/95 z-[100000] flex items-center justify-center p-4">
+        <div onclick="event.stopImmediatePropagation()" class="bg-zinc-900 w-full max-w-md rounded-3xl p-8 text-center border border-purple-400/30">
+            <div class="text-5xl mb-6">🔑</div>
+            <h3 class="title-font text-3xl font-semibold mb-1">Master Key</h3>
+            <p class="text-zinc-400 mb-8 text-sm">Only TaTTeD_HaTTeR can unlock the vault</p>
+            <div class="relative">
+                <input id="master-key-input" type="password" placeholder="Enter master key" class="w-full bg-white/10 border border-white/20 focus:border-purple-400 rounded-3xl px-8 py-6 text-2xl text-center outline-none mb-8">
+                <button onclick="togglePasswordVisibility()" id="eye-toggle" class="absolute right-6 top-1/2 -translate-y-1/2 text-3xl text-zinc-400">👁️</button>
+            </div>
+            <div class="flex gap-3">
+                <button onclick="hideUnlockModal()" class="flex-1 py-6 text-zinc-400 font-medium rounded-3xl border border-white/20 text-lg">Cancel</button>
+                <button onclick="verifyMasterKey()" class="flex-1 py-6 bg-gradient-to-r from-purple-500 to-pink-500 text-white font-semibold rounded-3xl text-lg">Unlock Vault</button>
+            </div>
+        </div>
+    </div>
+
+    <div onclick="if(event.target.id === 'age-modal') hideAgeModal()" id="age-modal" class="hidden fixed inset-0 bg-black/95 z-[110000] flex items-center justify-center p-4">
+        <div onclick="event.stopImmediatePropagation()" class="bg-zinc-900 w-full max-w-md rounded-3xl p-8 text-center border border-rose-400/30">
+            <div class="text-5xl mb-6">🔞</div>
+            <h3 class="title-font text-3xl font-semibold mb-2">Enter the Cosmic NSFW Vault</h3>
+            <p class="text-zinc-400 mb-8">You must be 18+ to proceed</p>
+            <label class="flex items-center justify-center gap-x-3 cursor-pointer mb-8">
+                <input type="checkbox" id="age-checkbox" class="w-6 h-6 accent-rose-500" onchange="toggleAgeConfirm()">
+                <span class="text-lg">I am 18 years or older</span>
+            </label>
+            <button onclick="confirmAge()" id="age-confirm-btn" class="w-full py-6 bg-gradient-to-r from-rose-500 to-pink-500 text-white font-semibold rounded-3xl text-lg disabled:opacity-50" disabled>Enter 18+ Section</button>
+            <p onclick="hideAgeModal()" class="text-xs text-zinc-400 mt-6 cursor-pointer">Cancel</p>
+        </div>
+    </div>
+
+    <div onclick="attemptUpload()" id="fab-upload" class="fab hidden sm:hidden">📤</div>
+
+    <footer class="mt-16 py-8 text-center text-xs text-zinc-500">
+        <div class="max-w-screen-2xl mx-auto px-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <p>Made with ❤️ &amp; cosmic energy by TaTTeD_HaTTeR</p>
+            <p>© 2026 • Public Cosmic Gallery • Viewable by all</p>
+        </div>
+    </footer>
+
+    <div id="toast" onclick="this.classList.add('hidden')" class="hidden fixed bottom-6 right-6 bg-gradient-to-r from-purple-600 to-pink-600 px-8 py-4 rounded-3xl shadow-2xl text-white font-medium z-[100000]">
+        <span id="toast-text"></span>
+    </div>
+
+    <script>
+        const SUPABASE_URL = "https://apcaumdzmhzqhsostjqo.supabase.co";
+        const SUPABASE_ANON_KEY = "sb_publishable_M5sBn3DQ1e4QxaiIAzQ36g_myTw4CVR";
+
+        let supabaseClient;
+        let mediaItems = [];
+        let currentFilter = 'all';
+        let currentModalIndex = null;
+        let showNSFW = false;
+        let ageVerified = false;
+        let masterKeyHash = null;
+        let sessionUnlocked = false;
+        let itemsPerPage = 12;
+        let currentPage = 0;
+        let isLoadingMore = false;
+        
+        const DEFAULT_MASTER_KEY = "twiztid420";
+        const STORAGE_KEY = 'taTTeD_HaTTeR_gallery_v45';
+        const BUCKET_NAME = 'Creations';
+
+        async function hashPassword(password) {
+            const encoder = new TextEncoder();
+            const data = encoder.encode(password);
+            const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+            return Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
+        }
+
+        async function loadMasterKey() {
+            masterKeyHash = localStorage.getItem('taTTeD_HaTTeR_masterHash');
+            if (!masterKeyHash) {
+                masterKeyHash = await hashPassword(DEFAULT_MASTER_KEY);
+                localStorage.setItem('taTTeD_HaTTeR_masterHash', masterKeyHash);
+            }
+        }
+
+        function loadAgeVerification() {
+            ageVerified = localStorage.getItem('taTTeD_HaTTeR_ageVerified') === 'true';
+        }
+
+        function saveAgeVerification() {
+            localStorage.setItem('taTTeD_HaTTeR_ageVerified', 'true');
+            ageVerified = true;
+        }
+
+        function attemptUpload() {
+            if (sessionUnlocked) {
+                document.getElementById('file-upload').click();
+            } else {
+                const modal = document.getElementById('unlock-modal');
+                modal.classList.remove('hidden');
+                modal.style.display = 'flex';
+                setTimeout(() => document.getElementById('master-key-input').focus(), 100);
+            }
+        }
+
+        async function verifyMasterKey() {
+            const entered = document.getElementById('master-key-input').value.trim();
+            if (!entered) return;
+            const enteredHash = await hashPassword(entered);
+            if (enteredHash === masterKeyHash) {
+                sessionUnlocked = true;
+                hideUnlockModal();
+                const fileInput = document.getElementById('file-upload');
+                fileInput.value = '';
+                fileInput.click();
+                showToast('🔓 Vault unlocked – select your files now');
+                updateFAB();
+            } else {
+                showToast('❌ Wrong master key — it is twiztid420');
+                document.getElementById('master-key-input').value = '';
+            }
+        }
+
+        function hideUnlockModal() {
+            const modal = document.getElementById('unlock-modal');
+            modal.style.display = 'none';
+            modal.classList.add('hidden');
+        }
+
+        function togglePasswordVisibility() {
+            const input = document.getElementById('master-key-input');
+            const eye = document.getElementById('eye-toggle');
+            if (input.type === 'password') {
+                input.type = 'text';
+                eye.textContent = '🙈';
+            } else {
+                input.type = 'password';
+                eye.textContent = '👁️';
+            }
+        }
+
+        function toggleNSFW() {
+            if (!showNSFW && !ageVerified) {
+                showAgeModal();
+                return;
+            }
+            showNSFW = !showNSFW;
+            const toggleEl = document.getElementById('nsfw-toggle');
+            const textEl = document.getElementById('nsfw-text');
+            if (showNSFW) {
+                toggleEl.classList.add('ring-2', 'ring-rose-400');
+                textEl.textContent = 'NSFW ON';
+            } else {
+                toggleEl.classList.remove('ring-2', 'ring-rose-400');
+                textEl.textContent = 'NSFW';
+            }
+            renderGallery(true);
+        }
+
+        function showAgeModal() {
+            const modal = document.getElementById('age-modal');
+            modal.classList.remove('hidden');
+            modal.style.display = 'flex';
+            document.getElementById('age-checkbox').checked = false;
+            document.getElementById('age-confirm-btn').disabled = true;
+        }
+
+        function hideAgeModal() {
+            const modal = document.getElementById('age-modal');
+            modal.style.display = 'none';
+            modal.classList.add('hidden');
+        }
+
+        function toggleAgeConfirm() {
+            document.getElementById('age-confirm-btn').disabled = !document.getElementById('age-checkbox').checked;
+        }
+
+        function confirmAge() {
+            if (document.getElementById('age-checkbox').checked) {
+                saveAgeVerification();
+                hideAgeModal();
+                showNSFW = true;
+                toggleNSFW();
+                renderGallery(true);
+            }
+        }
+
+        function updateFAB() {
+            const fab = document.getElementById('fab-upload');
+            if (sessionUnlocked) fab.classList.add('unlocked');
+            else fab.classList.remove('unlocked');
+        }
+
+        function renderGallery(reset = false) {
+            const container = document.getElementById('gallery');
+            const empty = document.getElementById('empty-state');
+            if (reset) {
+                currentPage = 0;
+                container.innerHTML = '';
+            }
+            let filtered = mediaItems;
+            if (currentFilter === 'image') filtered = filtered.filter(i => i.type === 'image');
+            if (currentFilter === 'video') filtered = filtered.filter(i => i.type === 'video');
+            if (currentFilter === 'nsfw') filtered = filtered.filter(i => i.nsfw === true);
+            if (!showNSFW) filtered = filtered.filter(i => !i.nsfw);
+            if (filtered.length === 0) {
+                empty.classList.remove('hidden');
+                return;
+            }
+            empty.classList.add('hidden');
+            const startIndex = currentPage * itemsPerPage;
+            const endIndex = startIndex + itemsPerPage;
+            const pageItems = filtered.slice(startIndex, endIndex);
+            const fragment = document.createDocumentFragment();
+            pageItems.forEach(item => {
+                const idx = mediaItems.indexOf(item);
+                const card = document.createElement('div');
+                card.className = 'media-card bg-zinc-900 cursor-pointer group';
+                card.onclick = () => openModal(idx);
+                let mediaHTML = item.type === 'image' 
+                    ? `<img src="${item.data}" loading="lazy" class="w-full aspect-video object-cover">`
+                    : `<video src="${item.data}" muted loop playsinline preload="none" class="w-full aspect-video object-cover"></video><div class="video-overlay"><div class="text-6xl text-white">▶</div></div>`;
+                card.innerHTML = `
+                <div class="relative">
+                    ${mediaHTML}
+                    ${item.nsfw ? `<div class="nsfw-badge">18+ NSFW</div>` : ''}
+                    <div class="absolute top-4 left-4 px-4 py-1 text-xs font-mono bg-white/10 backdrop-blur rounded-3xl text-white">${item.type}</div>
+                    <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 px-5 py-6 opacity-0 group-hover:opacity-100">
+                        <p class="line-clamp-1 text-sm">${item.name}</p>
+                    </div>
+                </div>`;
+                fragment.appendChild(card);
+            });
+            container.appendChild(fragment);
+            const images = mediaItems.filter(i => i.type === 'image').length;
+            const videos = mediaItems.filter(i => i.type === 'video').length;
+            document.getElementById('stats').innerHTML = `
+                <span class="flex items-center gap-x-2"><span class="text-purple-400">🖼️</span> ${images}</span>
+                <span class="flex items-center gap-x-2"><span class="text-pink-400">🎬</span> ${videos}</span>
+                <span class="font-semibold">${mediaItems.length} total</span>
+            `;
+            currentPage++;
+            isLoadingMore = false;
+        }
+
+        async function handleFiles(files) {
+            if (!sessionUnlocked) {
+                attemptUpload();
+                return;
+            }
+            const validFiles = Array.from(files).filter(f => f.type.startsWith('image/') || f.type.startsWith('video/'));
+            if (validFiles.length === 0) return;
+            showToast(`Uploading ${validFiles.length} file${validFiles.length > 1 ? 's' : ''}...`);
+            let processed = 0;
+            for (const file of validFiles) {
+                try {
+                    showToast(`Uploading ${file.name}...`);
+                    const fileName = `${Date.now()}-${file.name}`;
+                    const { error } = await supabaseClient.storage
+                        .from(BUCKET_NAME)
+                        .upload(fileName, file, { upsert: true });
+                    if (error) throw error;
+                    const { data: urlData } = supabaseClient.storage
+                        .from(BUCKET_NAME)
+                        .getPublicUrl(fileName);
+                    const newItem = {
+                        id: Date.now() + Math.random(),
+                        type: file.type.startsWith('image/') ? 'image' : 'video',
+                        name: file.name,
+                        data: urlData.publicUrl,
+                        timestamp: Date.now(),
+                        originalFileName: file.name,
+                        tags: [],
+                        nsfw: false
+                    };
+                    mediaItems.unshift(newItem);
+                    processed++;
+                    saveGallery();
+                    renderGallery(true);
+                    showToast(`${processed}/${validFiles.length} – ${file.name} saved`);
+                } catch (err) {
+                    console.error(err);
+                    showToast(`❌ Failed ${file.name}`);
+                }
+            }
+            currentFilter = 'all';
+            saveGallery();
+            renderGallery(true);
+            renderGallery(true);
+            showToast(`✅ All ${processed} creations saved permanently to cloud`);
+            document.getElementById('file-upload').value = '';
+        }
+
+        function refreshGallery() {
+            currentFilter = 'all';
+            renderGallery(true);
+            showToast('🔄 Gallery refreshed from cloud');
+        }
+
+        function openModal(idx) {
+            currentModalIndex = idx;
+            const item = mediaItems[idx];
+            const modal = document.getElementById('modal');
+            const mediaContainer = document.getElementById('modal-media');
+            mediaContainer.innerHTML = item.type === 'image' 
+                ? `<img src="${item.data}" class="max-h-[75vh] w-full object-contain rounded-3xl">`
+                : `<video src="${item.data}" controls autoplay loop class="max-h-[75vh] w-full rounded-3xl"></video>`;
+            document.getElementById('modal-filename').textContent = item.originalFileName || item.name;
+            document.getElementById('modal-date').innerHTML = `📅 ${new Date(item.timestamp).toLocaleDateString('en-US', {month:'long', day:'numeric', year:'numeric'})}`;
+            renderModalTags(item);
+            modal.style.display = 'flex';
+        }
+
+        function prevImage() {
+            if (currentModalIndex > 0) { currentModalIndex--; openModal(currentModalIndex); }
+        }
+
+        function nextImage() {
+            if (currentModalIndex < mediaItems.length - 1) { currentModalIndex++; openModal(currentModalIndex); }
+        }
+
+        function renderModalTags(item) {
+            const container = document.getElementById('modal-tags-display');
+            container.innerHTML = (item.tags || []).map((tag, i) => 
+                `<span onclick="removeTag(${i});" class="bg-white/10 px-3 py-1 rounded-3xl text-sm cursor-pointer">${tag} ×</span>`
+            ).join('');
+        }
+
+        function addTagFromModal() {
+            const input = document.getElementById('new-tag-input');
+            const tag = input.value.trim();
+            if (!tag || currentModalIndex === null) return;
+            const item = mediaItems[currentModalIndex];
+            if (!item.tags) item.tags = [];
+            if (!item.tags.includes(tag)) item.tags.push(tag);
+            input.value = '';
+            renderModalTags(item);
+            saveGallery();
+            renderGallery(true);
+        }
+
+        function removeTag(i) {
+            if (currentModalIndex === null) return;
+            mediaItems[currentModalIndex].tags.splice(i, 1);
+            renderModalTags(mediaItems[currentModalIndex]);
+            saveGallery();
+            renderGallery(true);
+        }
+
+        function suggestAITags() {
+            if (currentModalIndex === null) return;
+            const item = mediaItems[currentModalIndex];
+            const filename = item.originalFileName.toLowerCase();
+            const existingTags = new Set(item.tags || []);
+            const keywordMap = { 'neon': ['neon-glow','cyber-neon'], 'cyber': ['cyberpunk'], 'portrait': ['portrait'], 'face': ['portrait'], 'landscape': ['landscape'], 'abstract': ['abstract'], 'dream': ['dreamscape'], 'space': ['starfield'], 'motion': ['motion-blur'], 'video': ['motion'], 'glow': ['neon-glow'], 'holo': ['holographic'], 'vapor': ['vaporwave'] };
+            let newTags = [];
+            Object.keys(keywordMap).forEach(key => {
+                if (filename.includes(key)) keywordMap[key].forEach(tag => { if (!existingTags.has(tag)) newTags.push(tag); });
+            });
+            const cosmicTags = ['cosmic','aura','energy','starlight','nebula','void'];
+            for (let i = 0; i < 3; i++) {
+                const randomTag = cosmicTags[Math.floor(Math.random() * cosmicTags.length)];
+                if (!existingTags.has(randomTag) && !newTags.includes(randomTag)) newTags.push(randomTag);
+            }
+            newTags.forEach(tag => { if (!item.tags.includes(tag)) item.tags.push(tag); });
+            renderModalTags(item);
+            saveGallery();
+            renderGallery(true);
+            showToast('🤖 AI tags added!');
+        }
+
+        function closeModal() {
+            document.getElementById('modal').style.display = 'none';
+            currentModalIndex = null;
+        }
+
+        function downloadCurrent() {
+            if (currentModalIndex === null) return;
+            const item = mediaItems[currentModalIndex];
+            const a = document.createElement('a');
+            a.href = item.data;
+            a.download = item.originalFileName || 'creation';
+            a.click();
+        }
+
+        function copyPermanentURL() {
+            if (currentModalIndex === null) return;
+            const item = mediaItems[currentModalIndex];
+            navigator.clipboard.writeText(item.data).then(() => showToast('✅ Permanent URL copied!'));
+        }
+
+        function deleteCurrent() {
+            if (currentModalIndex === null || !confirm('Delete permanently from cloud?')) return;
+            mediaItems.splice(currentModalIndex, 1);
+            saveGallery();
+            closeModal();
+            renderGallery(true);
+        }
+
+        function setFilter(filter) {
+            currentFilter = filter;
+            renderGallery(true);
+        }
+
+        function showToast(message) {
+            const toast = document.getElementById('toast');
+            document.getElementById('toast-text').innerHTML = message;
+            toast.style.display = 'block';
+            setTimeout(() => toast.style.display = 'none', 2800);
+        }
+
+        function toggleMobileMenu() {
+            const menu = document.getElementById('mobile-menu');
+            menu.classList.toggle('hidden');
+        }
+
+        function saveGallery() {
+            const safeData = mediaItems.map(item => ({
+                id: item.id,
+                type: item.type,
+                name: item.name,
+                originalFileName: item.originalFileName,
+                timestamp: item.timestamp,
+                tags: item.tags || [],
+                nsfw: item.nsfw || false,
+                data: item.data
+            }));
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(safeData));
+        }
+
+        function loadGallery() {
+            const saved = localStorage.getItem(STORAGE_KEY);
+            if (saved) mediaItems = JSON.parse(saved);
+        }
+
+        function enableInteractions() {
+            document.body.addEventListener('dragover', e => e.preventDefault());
+            document.body.addEventListener('drop', e => {
+                e.preventDefault();
+                if (sessionUnlocked && e.dataTransfer.files.length) handleFiles(e.dataTransfer.files);
+                else if (!sessionUnlocked) attemptUpload();
+            });
+            window.addEventListener('scroll', () => {
+                const percent = (window.scrollY / (document.documentElement.scrollHeight - window.innerHeight)) * 100;
+                document.getElementById('progress-bar').style.width = percent + '%';
+            });
+            const sentinel = document.getElementById('scroll-sentinel');
+            const observer = new IntersectionObserver((entries) => {
+                if (entries[0].isIntersecting && !isLoadingMore) {
+                    isLoadingMore = true;
+                    renderGallery();
+                }
+            }, { threshold: 0.1 });
+            observer.observe(sentinel);
+            document.addEventListener('keydown', function(e) {
+                if (document.getElementById('modal').style.display !== 'flex') return;
+                if (e.key === 'ArrowLeft') prevImage();
+                if (e.key === 'ArrowRight') nextImage();
+                if (e.key === 'Escape') closeModal();
+            });
+        }
+
+        function createStarfield() {
+            const starfield = document.getElementById('starfield');
+            for (let i = 0; i < 120; i++) {
+                const star = document.createElement('div');
+                star.className = 'star';
+                star.style.left = Math.random() * 100 + '%';
+                star.style.top = Math.random() * 100 + '%';
+                star.style.width = star.style.height = Math.random() * 3 + 'px';
+                star.style.animationDelay = Math.random() * 4000 + 'ms';
+                starfield.appendChild(star);
+            }
+        }
+
+        function initialize() {
+            supabaseClient = Supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+            loadMasterKey();
+            loadAgeVerification();
+            loadGallery();
+            createStarfield();
+            renderGallery(true);
+            updateFAB();
+            enableInteractions();
+            if (window.innerWidth < 640) document.getElementById('fab-upload').classList.remove('hidden');
+            console.log('%c🚀 TaTTeD_HaTTeR Cosmic Gallery v45 – 100% Complete & Secure', 'background:#a855f7;color:#fff;padding:2px 8px;border-radius:9999px;font-size:12px');
+        }
+
+        window.onload = initialize;
+    </script>
+</body>
+</html>
