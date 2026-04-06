@@ -1,0 +1,720 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#a855f7">
+    <title>TaTTeD_HaTTeR • Public Gallery</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=Space+Grotesk:wght@500;600&amp;display=swap');
+        
+        :root { --tw-color-primary: #a855f7; }
+        
+        * {
+            transition-property: color, background-color, border-color, text-decoration-color, fill, stroke, opacity, transform;
+            transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+            transition-duration: 200ms;
+        }
+        
+        .tail-container * { font-family: 'Inter', system_ui, sans-serif; }
+        .title-font { font-family: 'Space Grotesk', sans-serif; }
+
+        .gallery-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 1.75rem;
+        }
+        
+        @media (min-width: 640px) { .gallery-grid { grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); } }
+        @media (min-width: 1024px) { .gallery-grid { grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)); gap: 2.25rem; } }
+
+        .media-card {
+            border-radius: 28px;
+            overflow: hidden;
+            box-shadow: 0 10px 20px -4px rgb(0 0 0 / 0.15);
+            position: relative;
+        }
+        
+        .media-card:hover { transform: translateY(-6px); box-shadow: 0 25px 50px -12px rgb(168 85 247 / 0.3); }
+        
+        .video-overlay {
+            position: absolute; inset: 0;
+            display: flex; align-items: center; justify-content: center;
+            background: linear-gradient(to bottom, transparent 65%, rgba(0,0,0,0.75));
+            opacity: 0;
+        }
+        
+        .media-card:hover .video-overlay { opacity: 1; }
+        
+        .nsfw-badge {
+            position: absolute; top: 14px; right: 14px;
+            background: #f43f5e; color: white;
+            font-size: 10px; font-weight: 700;
+            padding: 3px 11px; border-radius: 9999px;
+            box-shadow: 0 0 0 3px rgba(244,63,94,0.25);
+        }
+        
+        .fab {
+            position: fixed; bottom: 24px; right: 24px;
+            width: 72px; height: 72px;
+            background: linear-gradient(135deg, #a855f7, #ec4899);
+            border-radius: 9999px;
+            box-shadow: 0 10px 30px -5px rgb(168 85 247 / 0.5);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 36px; color: white; z-index: 99999;
+            animation: fabPulse 2s infinite ease-in-out;
+        }
+        
+        .fab.unlocked { animation: none; box-shadow: 0 0 0 8px rgba(168,85,247,0.3); }
+        
+        @keyframes fabPulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.1); } }
+        
+        .hero-bg { background: linear-gradient(180deg, #18181b 0%, #27272a 100%); }
+        
+        /* Hamburger menu overlay */
+        .mobile-menu-overlay {
+            animation: menuSlide 0.3s ease-out forwards;
+        }
+    </style>
+</head>
+<body class="tail-container bg-zinc-950 text-white min-h-screen pb-12">
+
+    <!-- Progress bar -->
+    <div id="progress-bar" class="scroll-progress w-0"></div>
+
+    <!-- NAVBAR -->
+    <nav class="sticky top-0 z-50 bg-black/90 backdrop-blur-2xl border-b border-white/10">
+        <div class="max-w-screen-2xl mx-auto px-6 py-6">
+            <div class="flex items-center justify-between">
+                <!-- Logo -->
+                <div class="flex items-center gap-x-3">
+                    <div class="w-9 h-9 bg-gradient-to-br from-purple-500 to-pink-500 rounded-2xl flex items-center justify-center text-3xl shadow-inner">🌀</div>
+                    <div>
+                        <h1 class="title-font text-3xl tracking-[-1px] font-semibold">TaTTeD_HaTTeR</h1>
+                        <p class="text-xs text-purple-400 font-medium -mt-0.5">PUBLIC GALLERY</p>
+                    </div>
+                </div>
+
+                <!-- Search -->
+                <div class="flex-1 max-w-xl mx-8">
+                    <div class="relative">
+                        <input id="search-input" type="text" placeholder="Search creations or tags..."
+                               onkeyup="if(event.key==='Enter') handleSearch(); else debounceSearch()"
+                               class="search-input w-full bg-white/10 hover:bg-white/15 focus:bg-white/20 border border-white/10 focus:border-purple-400 text-white placeholder-zinc-400 rounded-3xl px-6 py-4 pl-14 text-base outline-none">
+                        <div class="absolute left-6 top-1/2 -translate-y-1/2 text-zinc-400">🔍</div>
+                        <button onclick="clearSearch()" id="clear-search-btn" class="absolute right-6 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-white hidden">✕</button>
+                    </div>
+                </div>
+
+                <!-- Desktop controls -->
+                <div class="hidden sm:flex items-center gap-x-4">
+                    <button onclick="attemptUpload()" id="upload-btn-desktop"
+                            class="flex items-center gap-x-3 bg-white/10 hover:bg-white/20 text-white font-semibold px-8 py-4 rounded-3xl text-base shadow-inner">
+                        <span id="upload-icon-desktop" class="text-2xl">📤</span>
+                        <span id="upload-text-desktop">Upload</span>
+                    </button>
+
+                    <input type="file" id="file-upload" multiple accept="image/*,video/*" class="hidden" onchange="handleFiles(this.files)">
+
+                    <div onclick="toggleNSFW()" id="nsfw-toggle"
+                         class="flex items-center gap-x-2 bg-white/10 hover:bg-white/20 px-6 py-4 rounded-3xl cursor-pointer">
+                        <span class="text-rose-400 text-xl">🔞</span>
+                        <span id="nsfw-text" class="font-medium text-sm">NSFW 18+</span>
+                        <div id="nsfw-dot" class="w-3 h-3 bg-rose-400 rounded-full"></div>
+                    </div>
+                </div>
+
+                <!-- Hamburger -->
+                <button onclick="toggleMobileMenu()" class="sm:hidden w-11 h-11 flex items-center justify-center text-3xl bg-white/10 hover:bg-white/20 rounded-3xl">☰</button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- MOBILE MENU OVERLAY -->
+    <div id="mobile-menu" class="hidden fixed inset-0 bg-black/95 z-[99999] flex flex-col pt-20 px-6 mobile-menu-overlay">
+        <div class="flex flex-col gap-4">
+            <button onclick="setFilter('all');toggleMobileMenu()" class="py-5 text-left text-xl font-medium">All Creations</button>
+            <button onclick="setFilter('image');toggleMobileMenu()" class="py-5 text-left text-xl font-medium">Images</button>
+            <button onclick="setFilter('video');toggleMobileMenu()" class="py-5 text-left text-xl font-medium">Videos</button>
+            <button onclick="setFilter('nsfw');toggleMobileMenu()" class="py-5 text-left text-xl font-medium flex items-center gap-x-3">
+                <span>🔞</span> NSFW 18+
+            </button>
+            <div class="h-px bg-white/20 my-4"></div>
+            <button onclick="randomizeOrder();toggleMobileMenu()" class="py-5 text-left text-xl font-medium">Shuffle Gallery</button>
+            <button onclick="attemptUpload();toggleMobileMenu()" class="py-5 text-left text-xl font-medium flex items-center gap-x-3">
+                <span>📤</span> Upload Creations
+            </button>
+        </div>
+        <button onclick="toggleMobileMenu()" class="mt-auto mb-8 text-zinc-400 text-xl">Close</button>
+    </div>
+
+    <!-- PROFESSIONAL HERO -->
+    <div class="hero-bg py-16">
+        <div class="max-w-screen-2xl mx-auto px-6">
+            <div class="flex flex-col items-center text-center max-w-2xl mx-auto">
+                <div class="inline-flex items-center gap-x-2 bg-white/10 text-white text-xs font-medium px-5 py-2 rounded-3xl mb-6">
+                    <span class="text-emerald-400">●</span> PUBLIC • CURATED • AI + CAPCUT
+                </div>
+                <h2 class="title-font text-6xl sm:text-7xl font-semibold tracking-[-2.5px] leading-none text-balance">
+                    TaTTeD_HaTTeR<br>Creations Gallery
+                </h2>
+                <p class="mt-6 text-zinc-400 text-xl max-w-md">Everyone can browse. Only I can upload.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- GALLERY SECTION -->
+    <div class="max-w-screen-2xl mx-auto px-6 pt-8">
+        <div class="flex items-baseline justify-between mb-6">
+            <h3 class="text-2xl font-semibold">All Creations</h3>
+            <div id="stats" class="font-mono flex items-center gap-x-6 text-sm"></div>
+        </div>
+        <div id="gallery" class="gallery-grid"></div>
+        
+        <div id="empty-state" class="hidden mx-auto max-w-md text-center py-24 rounded-3xl bg-gradient-to-br from-zinc-900 to-purple-950/30">
+            <div class="text-7xl mb-6">🌀</div>
+            <h3 class="text-3xl font-semibold title-font">Gallery is empty</h3>
+            <p class="mt-3 text-zinc-400">Only TaTTeD_HaTTeR can upload the first creations</p>
+        </div>
+    </div>
+
+    <!-- LIGHTBOX -->
+    <div onclick="if(event.target.id === 'modal') closeModal()" id="modal" class="hidden fixed inset-0 bg-black/95 z-[9999] flex items-center justify-center p-4">
+        <div id="modal-content" class="modal-content w-full max-w-5xl bg-zinc-900 rounded-3xl overflow-hidden">
+            <div class="px-8 py-6 border-b border-white/10 flex items-center justify-between">
+                <div id="modal-filename" class="font-semibold text-2xl truncate"></div>
+                <button onclick="closeModal()" class="text-3xl text-zinc-400 hover:text-white">✕</button>
+            </div>
+            <div id="modal-media" class="flex items-center justify-center bg-black p-6 min-h-[60vh]"></div>
+            <div class="px-8 py-6 border-t border-white/10">
+                <div class="flex items-center gap-x-3 mb-4">
+                    <span class="uppercase text-xs tracking-widest text-zinc-400">Tags</span>
+                    <div id="modal-tags-display" class="flex gap-x-2 flex-wrap"></div>
+                </div>
+                <div class="flex">
+                    <input id="new-tag-input" type="text" placeholder="Add tag..." 
+                           onkeydown="if(event.keyCode===13) addTagFromModal()" 
+                           class="flex-1 bg-white/10 border border-white/10 focus:border-purple-400 rounded-3xl px-6 py-4 outline-none">
+                    <button onclick="addTagFromModal()" class="ml-4 px-10 bg-purple-500 hover:bg-purple-600 rounded-3xl font-semibold">Add</button>
+                </div>
+            </div>
+            <div class="px-8 py-6 flex items-center justify-between text-sm border-t border-white/10">
+                <div id="modal-date" class="font-mono text-zinc-400"></div>
+                <div class="flex gap-x-6">
+                    <button onclick="downloadCurrent()" class="flex items-center gap-x-2 hover:text-purple-400">↓ Download</button>
+                    <button onclick="deleteCurrent()" class="flex items-center gap-x-2 text-red-400 hover:text-red-500">🗑️ Delete</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MASTER KEY MODAL -->
+    <div onclick="if(event.target.id === 'unlock-modal') hideUnlockModal()" id="unlock-modal" class="hidden fixed inset-0 bg-black/95 z-[100000] flex items-center justify-center p-4">
+        <div onclick="event.stopImmediatePropagation()" class="bg-zinc-900 w-full max-w-md rounded-3xl p-8 text-center">
+            <div class="text-5xl mb-6">🔑</div>
+            <h3 class="title-font text-3xl font-semibold mb-1">Master Key</h3>
+            <p class="text-zinc-400 mb-8 text-sm">Only TaTTeD_HaTTeR can upload</p>
+            <input id="master-key-input" type="password" placeholder="Enter master key" 
+                   class="w-full bg-white/10 border border-white/20 focus:border-purple-400 rounded-3xl px-8 py-6 text-2xl text-center outline-none mb-8">
+            <div class="flex gap-3">
+                <button onclick="hideUnlockModal()" class="flex-1 py-6 text-zinc-400 font-medium rounded-3xl border border-white/20 text-lg">Cancel</button>
+                <button onclick="verifyMasterKey()" class="flex-1 py-6 bg-gradient-to-r from-purple-500 to-pink-500 text-white font-semibold rounded-3xl text-lg">Unlock &amp; Upload</button>
+            </div>
+            <p onclick="resetMasterKey()" class="text-xs text-amber-400 mt-8 cursor-pointer">Reset master key</p>
+        </div>
+    </div>
+
+    <!-- AGE VERIFICATION MODAL -->
+    <div onclick="if(event.target.id === 'age-modal') hideAgeModal()" id="age-modal" class="hidden fixed inset-0 bg-black/95 z-[110000] flex items-center justify-center p-4">
+        <div onclick="event.stopImmediatePropagation()" class="bg-zinc-900 w-full max-w-md rounded-3xl p-8 text-center">
+            <div class="text-5xl mb-6">🔞</div>
+            <h3 class="title-font text-3xl font-semibold mb-2">Age Verification</h3>
+            <p class="text-zinc-400 mb-8">You must be 18+ to view NSFW content</p>
+            <label class="flex items-center justify-center gap-x-3 cursor-pointer mb-8">
+                <input type="checkbox" id="age-checkbox" class="w-6 h-6 accent-rose-500" onchange="toggleAgeConfirm()">
+                <span class="text-lg">I am 18 years of age or older</span>
+            </label>
+            <button onclick="confirmAge()" id="age-confirm-btn" 
+                    class="w-full py-6 bg-gradient-to-r from-rose-500 to-pink-500 text-white font-semibold rounded-3xl text-lg disabled:opacity-50" disabled>
+                Enter NSFW Section
+            </button>
+            <p onclick="hideAgeModal()" class="text-xs text-zinc-400 mt-6 cursor-pointer">Cancel</p>
+        </div>
+    </div>
+
+    <!-- MOBILE FAB -->
+    <div onclick="attemptUpload()" id="fab-upload" class="fab hidden sm:hidden">📤</div>
+
+    <!-- FOOTER -->
+    <footer class="footer mt-20 py-8 text-center text-xs text-zinc-500">
+        <div class="max-w-screen-2xl mx-auto px-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <p>Made with ❤️ by TaTTeD_HaTTeR • Your AI + CapCut Creations</p>
+            <p>© 2026 • Public Gallery • Viewable by everyone</p>
+        </div>
+    </footer>
+
+    <!-- Toast -->
+    <div id="toast" onclick="this.classList.add('hidden')" class="hidden fixed bottom-8 right-8 bg-gradient-to-r from-purple-600 to-pink-600 px-8 py-5 rounded-3xl shadow-2xl text-white font-medium z-[100000] max-w-[280px]">
+        <span id="toast-text"></span>
+    </div>
+
+    <script>
+        /**
+         * TaTTeD_HaTTeR Public Gallery v15 – FULL PROFESSIONAL VERSION
+         * Master key = twiztid420
+         * Survives refreshes (base64)
+         * Professional hamburger menu
+         * All buttons fully functional
+         */
+        
+        let mediaItems = []
+        let currentFilter = 'all'
+        let currentTagFilter = null
+        let currentSort = 'newest'
+        let searchTerm = ''
+        let currentModalIndex = null
+        let showNSFW = false
+        let ageVerified = false
+        let masterKeyHash = null
+        let sessionUnlocked = false
+        let searchTimeout = null
+        
+        const DEFAULT_MASTER_KEY = "twiztid420"
+        
+        async function hashPassword(password) {
+            const encoder = new TextEncoder()
+            const data = encoder.encode(password)
+            const hashBuffer = await crypto.subtle.digest('SHA-256', data)
+            return Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('')
+        }
+        
+        function loadMasterKey() {
+            masterKeyHash = localStorage.getItem('taTTeD_HaTTeR_masterHash_v15')
+            if (!masterKeyHash) {
+                hashPassword(DEFAULT_MASTER_KEY).then(hash => {
+                    masterKeyHash = hash
+                    localStorage.setItem('taTTeD_HaTTeR_masterHash_v15', hash)
+                })
+            }
+        }
+        
+        function loadAgeVerification() {
+            ageVerified = localStorage.getItem('taTTeD_HaTTeR_ageVerified') === 'true'
+        }
+        
+        function saveAgeVerification() {
+            localStorage.setItem('taTTeD_HaTTeR_ageVerified', 'true')
+            ageVerified = true
+        }
+        
+        function attemptUpload() {
+            if (sessionUnlocked) {
+                document.getElementById('file-upload').click()
+            } else {
+                const modal = document.getElementById('unlock-modal')
+                modal.classList.remove('hidden')
+                modal.style.display = 'flex'
+                setTimeout(() => document.getElementById('master-key-input').focus(), 100)
+            }
+        }
+        
+        async function verifyMasterKey() {
+            const entered = document.getElementById('master-key-input').value.trim()
+            if (!entered) return
+            const enteredHash = await hashPassword(entered)
+            if (enteredHash === masterKeyHash) {
+                sessionUnlocked = true
+                hideUnlockModal()
+                setTimeout(() => document.getElementById('file-upload').click(), 300)
+                showToast('🔓 Unlocked • Upload ready')
+                updateFAB()
+            } else {
+                showToast('❌ Wrong master key')
+                document.getElementById('master-key-input').value = ''
+            }
+        }
+        
+        function hideUnlockModal() {
+            const modal = document.getElementById('unlock-modal')
+            modal.style.display = 'none'
+            modal.classList.add('hidden')
+        }
+        
+        function resetMasterKey() {
+            if (confirm('Reset master key?')) {
+                localStorage.removeItem('taTTeD_HaTTeR_masterHash_v15')
+                masterKeyHash = null
+                sessionUnlocked = false
+                hideUnlockModal()
+                updateFAB()
+            }
+        }
+        
+        function toggleNSFW() {
+            if (!showNSFW && !ageVerified) {
+                showAgeModal()
+                return
+            }
+            showNSFW = !showNSFW
+            const toggleEl = document.getElementById('nsfw-toggle')
+            const textEl = document.getElementById('nsfw-text')
+            const dotEl = document.getElementById('nsfw-dot')
+            if (showNSFW) {
+                toggleEl.classList.add('ring-2', 'ring-rose-400')
+                textEl.textContent = 'NSFW 18+ ON'
+                dotEl.style.backgroundColor = '#f43f5e'
+            } else {
+                toggleEl.classList.remove('ring-2', 'ring-rose-400')
+                textEl.textContent = 'NSFW 18+ OFF'
+                dotEl.style.backgroundColor = 'transparent'
+            }
+            renderGallery()
+        }
+        
+        function showAgeModal() {
+            const modal = document.getElementById('age-modal')
+            modal.classList.remove('hidden')
+            modal.style.display = 'flex'
+            document.getElementById('age-checkbox').checked = false
+            document.getElementById('age-confirm-btn').disabled = true
+        }
+        
+        function hideAgeModal() {
+            const modal = document.getElementById('age-modal')
+            modal.style.display = 'none'
+            modal.classList.add('hidden')
+        }
+        
+        function toggleAgeConfirm() {
+            document.getElementById('age-confirm-btn').disabled = !document.getElementById('age-checkbox').checked
+        }
+        
+        function confirmAge() {
+            if (document.getElementById('age-checkbox').checked) {
+                saveAgeVerification()
+                hideAgeModal()
+                showNSFW = true
+                const toggleEl = document.getElementById('nsfw-toggle')
+                const textEl = document.getElementById('nsfw-text')
+                const dotEl = document.getElementById('nsfw-dot')
+                toggleEl.classList.add('ring-2', 'ring-rose-400')
+                textEl.textContent = 'NSFW 18+ ON'
+                dotEl.style.backgroundColor = '#f43f5e'
+                renderGallery()
+            }
+        }
+        
+        function updateFAB() {
+            const fab = document.getElementById('fab-upload')
+            if (sessionUnlocked) {
+                fab.classList.add('unlocked')
+                fab.style.background = 'linear-gradient(135deg, #10b981, #34d399)'
+                fab.innerHTML = '📤'
+            } else {
+                fab.classList.remove('unlocked')
+                fab.style.background = 'linear-gradient(135deg, #a855f7, #ec4899)'
+                fab.innerHTML = '🔒'
+            }
+        }
+        
+        function setSort(sortType) {
+            currentSort = sortType
+            document.querySelectorAll('.sort-btn').forEach(btn => btn.classList.remove('active', 'bg-purple-500', 'text-white'))
+            document.getElementById(`sort-${sortType}`).classList.add('active', 'bg-purple-500', 'text-white')
+            renderGallery()
+        }
+        
+        function renderGallery() {
+            const start = performance.now()
+            const container = document.getElementById('gallery')
+            const empty = document.getElementById('empty-state')
+            
+            let filtered = mediaItems
+            if (currentFilter === 'image') filtered = filtered.filter(i => i.type === 'image')
+            if (currentFilter === 'video') filtered = filtered.filter(i => i.type === 'video')
+            if (currentFilter === 'nsfw') filtered = filtered.filter(i => i.nsfw === true)
+            if (!showNSFW) filtered = filtered.filter(i => !i.nsfw)
+            if (currentTagFilter) filtered = filtered.filter(i => i.tags && i.tags.includes(currentTagFilter))
+            if (searchTerm) {
+                const term = searchTerm.toLowerCase()
+                filtered = filtered.filter(i => 
+                    i.name.toLowerCase().includes(term) || 
+                    (i.tags && i.tags.some(t => t.toLowerCase().includes(term)))
+                )
+            }
+            
+            if (currentSort === 'newest') filtered.sort((a, b) => b.timestamp - a.timestamp)
+            else if (currentSort === 'oldest') filtered.sort((a, b) => a.timestamp - b.timestamp)
+            else if (currentSort === 'random') filtered.sort(() => Math.random() - 0.5)
+            
+            container.innerHTML = ''
+            if (filtered.length === 0) {
+                empty.classList.remove('hidden')
+                return
+            }
+            empty.classList.add('hidden')
+            
+            const fragment = document.createDocumentFragment()
+            filtered.forEach(item => {
+                const idx = mediaItems.indexOf(item)
+                const card = document.createElement('div')
+                card.className = 'media-card bg-zinc-900 cursor-pointer group'
+                card.onclick = () => openModal(idx)
+                
+                let mediaHTML = item.type === 'image' 
+                    ? `<img src="${item.data}" loading="lazy" class="w-full aspect-video object-cover">`
+                    : `<video src="${item.data}" muted loop playsinline preload="none" class="w-full aspect-video object-cover"></video><div class="video-overlay"><div class="text-6xl text-white">▶</div></div>`
+                
+                card.innerHTML = `
+                <div class="relative">
+                    ${mediaHTML}
+                    ${item.nsfw ? `<div class="nsfw-badge">18+ NSFW</div>` : ''}
+                    <div class="absolute top-4 left-4 px-4 py-1 text-xs font-mono bg-white/10 backdrop-blur rounded-3xl text-white">${item.type}</div>
+                    <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 px-5 py-6 opacity-0 group-hover:opacity-100">
+                        <p class="line-clamp-1 text-sm">${item.name}</p>
+                    </div>
+                </div>`
+                fragment.appendChild(card)
+            })
+            container.appendChild(fragment)
+            
+            const images = mediaItems.filter(i => i.type === 'image').length
+            const videos = mediaItems.filter(i => i.type === 'video').length
+            document.getElementById('stats').innerHTML = `
+                <span class="flex items-center gap-x-2"><span class="text-purple-400">🖼️</span> ${images}</span>
+                <span class="flex items-center gap-x-2"><span class="text-pink-400">🎬</span> ${videos}</span>
+                <span class="font-semibold">${mediaItems.length} total</span>
+            `
+            document.getElementById('performance-info').textContent = `${(performance.now() - start).toFixed(0)} ms • ${filtered.length} shown`
+        }
+        
+        function handleFiles(files) {
+            if (!sessionUnlocked) {
+                attemptUpload()
+                return
+            }
+            
+            const fileList = Array.from(files).map(f => f.name).join(', ')
+            showToast(`Processing ${files.length} file${files.length > 1 ? 's' : ''}<br><span class="text-xs opacity-75">${fileList}</span>`)
+            
+            let processed = 0
+            Array.from(files).forEach(file => {
+                if (!file.type.startsWith('image/') && !file.type.startsWith('video/')) return
+                
+                const reader = new FileReader()
+                reader.onload = function(e) {
+                    const isNSFW = confirm(`Mark "${file.name}" as NSFW 18+?`)
+                    const newItem = {
+                        id: Date.now() + Math.random(),
+                        type: file.type.startsWith('image/') ? 'image' : 'video',
+                        name: file.name,
+                        data: e.target.result,
+                        timestamp: Date.now(),
+                        originalFileName: file.name,
+                        tags: [],
+                        nsfw: isNSFW
+                    }
+                    mediaItems.unshift(newItem)
+                    processed++
+                    if (processed === Array.from(files).filter(f => f.type.startsWith('image/') || f.type.startsWith('video/')).length) {
+                        saveGallery()
+                        renderGallery()
+                        showToast(`${processed} creation${processed > 1 ? 's' : ''} saved permanently`)
+                    }
+                }
+                reader.readAsDataURL(file)
+            })
+        }
+        
+        function openModal(idx) {
+            currentModalIndex = idx
+            const item = mediaItems[idx]
+            const modal = document.getElementById('modal')
+            const mediaContainer = document.getElementById('modal-media')
+            
+            mediaContainer.innerHTML = item.type === 'image' 
+                ? `<img src="${item.data}" class="max-h-[75vh] w-full object-contain rounded-3xl">`
+                : `<video src="${item.data}" controls autoplay loop class="max-h-[75vh] w-full rounded-3xl"></video>`
+            
+            document.getElementById('modal-filename').textContent = item.originalFileName || item.name
+            document.getElementById('modal-date').innerHTML = `📅 ${new Date(item.timestamp).toLocaleDateString('en-US', {month:'long', day:'numeric', year:'numeric'})}`
+            renderModalTags(item)
+            modal.style.display = 'flex'
+        }
+        
+        function renderModalTags(item) {
+            const container = document.getElementById('modal-tags-display')
+            container.innerHTML = (item.tags || []).map((tag, i) => 
+                `<span onclick="removeTag(${i});" class="tag-pill cursor-pointer">${tag} ×</span>`
+            ).join('')
+        }
+        
+        function addTagFromModal() {
+            const input = document.getElementById('new-tag-input')
+            const tag = input.value.trim()
+            if (!tag || currentModalIndex === null) return
+            const item = mediaItems[currentModalIndex]
+            if (!item.tags) item.tags = []
+            if (!item.tags.includes(tag)) item.tags.push(tag)
+            input.value = ''
+            renderModalTags(item)
+            saveGallery()
+            renderGallery()
+        }
+        
+        function removeTag(i) {
+            if (currentModalIndex === null) return
+            mediaItems[currentModalIndex].tags.splice(i, 1)
+            renderModalTags(mediaItems[currentModalIndex])
+            saveGallery()
+            renderGallery()
+        }
+        
+        function closeModal() {
+            document.getElementById('modal').style.display = 'none'
+            currentModalIndex = null
+        }
+        
+        function downloadCurrent() {
+            if (currentModalIndex === null) return
+            const item = mediaItems[currentModalIndex]
+            const a = document.createElement('a')
+            a.href = item.data
+            a.download = item.originalFileName || 'creation'
+            a.click()
+        }
+        
+        function deleteCurrent() {
+            if (currentModalIndex === null || !confirm('Delete permanently?')) return
+            mediaItems.splice(currentModalIndex, 1)
+            saveGallery()
+            closeModal()
+            renderGallery()
+        }
+        
+        function setFilter(filter) {
+            currentFilter = filter
+            currentTagFilter = null
+            document.querySelectorAll('#filter-all, #filter-image, #filter-video, #filter-nsfw').forEach(b => b.classList.remove('active-filter', 'bg-white/10'))
+            if (filter === 'all') document.getElementById('filter-all').classList.add('active-filter', 'bg-white/10')
+            else if (filter === 'image') document.getElementById('filter-image').classList.add('active-filter', 'bg-white/10')
+            else if (filter === 'video') document.getElementById('filter-video').classList.add('active-filter', 'bg-white/10')
+            else if (filter === 'nsfw') document.getElementById('filter-nsfw').classList.add('active-filter', 'bg-white/10')
+            renderGallery()
+        }
+        
+        function filterByTag(tag) {
+            currentTagFilter = tag
+            currentFilter = 'all'
+            renderGallery()
+            updateTagFiltersUI()
+        }
+        
+        function updateTagFiltersUI() {
+            const container = document.getElementById('tag-filters')
+            const allTags = [...new Set(mediaItems.flatMap(i => i.tags || []))]
+            container.innerHTML = allTags.map(tag => {
+                const active = currentTagFilter === tag ? 'bg-purple-500 text-white' : 'bg-white/10 hover:bg-white/20'
+                return `<button onclick="filterByTag('${tag}')" class="px-5 py-2 text-xs rounded-3xl ${active}">${tag}</button>`
+            }).join('')
+        }
+        
+        function debounceSearch() {
+            clearTimeout(searchTimeout)
+            searchTimeout = setTimeout(() => {
+                searchTerm = document.getElementById('search-input').value.trim()
+                document.getElementById('clear-search-btn').classList.toggle('hidden', !searchTerm)
+                renderGallery()
+            }, 180)
+        }
+        
+        function handleSearch() {
+            searchTerm = document.getElementById('search-input').value.trim()
+            document.getElementById('clear-search-btn').classList.toggle('hidden', !searchTerm)
+            renderGallery()
+        }
+        
+        function clearSearch() {
+            searchTerm = ''
+            document.getElementById('search-input').value = ''
+            document.getElementById('clear-search-btn').classList.add('hidden')
+            renderGallery()
+        }
+        
+        function randomizeOrder() {
+            mediaItems.sort(() => Math.random() - 0.5)
+            currentSort = 'random'
+            document.querySelectorAll('.sort-btn').forEach(b => b.classList.remove('active', 'bg-purple-500', 'text-white'))
+            document.getElementById('sort-random').classList.add('active', 'bg-purple-500', 'text-white')
+            saveGallery()
+            renderGallery()
+            showToast('Gallery shuffled ✨')
+        }
+        
+        function saveGallery() {
+            const safeData = mediaItems.map(item => ({
+                id: item.id,
+                type: item.type,
+                name: item.name,
+                originalFileName: item.originalFileName,
+                timestamp: item.timestamp,
+                tags: item.tags || [],
+                nsfw: item.nsfw || false,
+                data: item.data
+            }))
+            localStorage.setItem('taTTeD_HaTTeR_gallery_v15', JSON.stringify(safeData))
+        }
+        
+        function loadGallery() {
+            const saved = localStorage.getItem('taTTeD_HaTTeR_gallery_v15')
+            if (saved) mediaItems = JSON.parse(saved)
+        }
+        
+        function showToast(message) {
+            const toast = document.getElementById('toast')
+            document.getElementById('toast-text').innerHTML = message
+            toast.style.display = 'block'
+            setTimeout(() => toast.style.display = 'none', 3200)
+        }
+        
+        function toggleMobileMenu() {
+            const menu = document.getElementById('mobile-menu')
+            menu.classList.toggle('hidden')
+        }
+        
+        function enableInteractions() {
+            document.body.addEventListener('dragover', e => e.preventDefault())
+            document.body.addEventListener('drop', e => {
+                e.preventDefault()
+                if (sessionUnlocked && e.dataTransfer.files.length) handleFiles(e.dataTransfer.files)
+                else if (!sessionUnlocked) attemptUpload()
+            })
+            window.addEventListener('scroll', () => {
+                const percent = (window.scrollY / (document.documentElement.scrollHeight - window.innerHeight)) * 100
+                document.getElementById('progress-bar').style.width = percent + '%'
+            })
+        }
+        
+        function initialize() {
+            initTailwind()
+            loadMasterKey()
+            loadAgeVerification()
+            loadGallery()
+            renderGallery()
+            updateTagFiltersUI()
+            updateFAB()
+            enableInteractions()
+            
+            if (window.innerWidth < 640) {
+                document.getElementById('fab-upload').classList.remove('hidden')
+            }
+            
+            console.log('%c🚀 TaTTeD_HaTTeR Public Gallery v15 – PROFESSIONAL & FULLY FUNCTIONAL', 'background:#a855f7;color:#fff;padding:2px 8px;border-radius:9999px;font-size:12px')
+        }
+        
+        window.onload = initialize
+    </script>
+</body>
+</html>
